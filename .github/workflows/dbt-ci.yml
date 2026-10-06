@@ -23,9 +23,7 @@ jobs:
       - name: Write Snowflake private key
         run: |
           mkdir -p keys
-          cat > keys/rsa_key.p8 << 'EOF'
-          ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
-          EOF
+          echo "${{ secrets.SNOWFLAKE_PRIVATE_KEY_B64 }}" | base64 -d > keys/rsa_key.p8
 
       - name: dbt run
         env:
