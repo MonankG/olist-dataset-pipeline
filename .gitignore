@@ -1,0 +1,13 @@
+.env
+keys/
+kaggle/
+venv/
+extract/data/
+olist-dataset-pipeline_credentials.csv
+dbt_project/target/
+dbt_project/dbt_packages/
+dbt_project/logs/
+dbt_project/.user.yml
+__pycache__/
+*.pyc
+notes/

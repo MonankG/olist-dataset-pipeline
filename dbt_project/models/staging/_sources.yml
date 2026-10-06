@@ -1,0 +1,25 @@
+version: 2
+
+sources:
+  - name: raw_olist
+    database: "{{ env_var('SNOWFLAKE_DATABASE') }}"
+    schema: RAW
+    tables:
+      - name: customers
+        identifier: CUSTOMERS
+      - name: geolocation
+        identifier: GEOLOCATION
+      - name: order_items
+        identifier: ORDER_ITEMS
+      - name: order_payments
+        identifier: ORDER_PAYMENTS
+      - name: order_reviews
+        identifier: ORDER_REVIEWS
+      - name: orders
+        identifier: ORDERS
+      - name: products
+        identifier: PRODUCTS
+      - name: sellers
+        identifier: SELLERS
+      - name: product_category_name_translation
+        identifier: PRODUCT_CATEGORY_NAME_TRANSLATION

@@ -1,0 +1,48 @@
+name: dbt CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  dbt-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Write Snowflake private key
+        run: |
+          mkdir -p keys
+          cat > keys/rsa_key.p8 << 'EOF'
+          ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
+          EOF
+
+      - name: dbt run
+        env:
+          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+          SNOWFLAKE_PRIVATE_KEY_PATH: keys/rsa_key.p8
+          SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
+          SNOWFLAKE_DATABASE: ${{ secrets.SNOWFLAKE_DATABASE }}
+          SNOWFLAKE_DBT_SCHEMA: ${{ secrets.SNOWFLAKE_DBT_SCHEMA }}
+        run: dbt run --project-dir dbt_project --profiles-dir dbt_project
+
+      - name: dbt test
+        env:
+          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+          SNOWFLAKE_PRIVATE_KEY_PATH: keys/rsa_key.p8
+          SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
+          SNOWFLAKE_DATABASE: ${{ secrets.SNOWFLAKE_DATABASE }}
+          SNOWFLAKE_DBT_SCHEMA: ${{ secrets.SNOWFLAKE_DBT_SCHEMA }}
+        run: dbt test --project-dir dbt_project --profiles-dir dbt_project
