@@ -25,13 +25,6 @@ jobs:
           mkdir -p keys
           echo "${{ secrets.SNOWFLAKE_PRIVATE_KEY_B64 }}" | base64 -d > keys/rsa_key.p8
 
-      - name: Debug private key file (no secret content printed)
-        run: |
-          echo "byte count:"; wc -c < keys/rsa_key.p8
-          echo "line count:"; wc -l < keys/rsa_key.p8
-          echo "first line:"; head -n 1 keys/rsa_key.p8
-          echo "last line:"; tail -n 1 keys/rsa_key.p8
-
       - name: dbt run
         env:
           SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
