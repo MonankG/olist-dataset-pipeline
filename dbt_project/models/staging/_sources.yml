@@ -23,3 +23,5 @@ sources:
         identifier: SELLERS
       - name: product_category_name_translation
         identifier: PRODUCT_CATEGORY_NAME_TRANSLATION
+      - name: exchange_rate
+        identifier: EXCHANGE_RATE

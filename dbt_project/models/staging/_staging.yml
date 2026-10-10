@@ -44,3 +44,8 @@ models:
     columns:
       - name: product_category_name
         tests: [unique, not_null]
+
+  - name: stg_exchange_rate
+    columns:
+      - name: rate_date
+        tests: [unique, not_null]

@@ -44,6 +44,77 @@ GitHub Actions, Kaggle API.
 ## Progress log
 (Newest entries at the top. Each entry: date, what was done, files touched, what's next.)
 
+- **2026-10-09** — Generated interview-prep note "Incremental Ingestion &
+  Idempotent Loads" under `notes/Data Engineering/` (file-per-day pattern,
+  Snowflake's automatic load-history skip, Airflow fan-in dependencies).
+  Updated `notes/Knowledge-Map.md`. 13 notes total.
+- **2026-10-09** — Built and fully verified the stretch goal: daily exchange-
+  rate enrichment. `extract/fetch_exchange_rate.py` calls the free
+  Frankfurter API (no key needed, confirmed working:
+  `api.frankfurter.app/latest?from=USD&to=BRL`) and uploads one small
+  dated CSV per run to `s3://.../raw/exchange_rate/{date}.csv`.
+  `load/load_exchange_rate.py` loads it into a new `EXCHANGE_RATE` raw table
+  — deliberately uses `CREATE TABLE IF NOT EXISTS` (not `CREATE OR REPLACE`
+  like the main load script) so history accumulates instead of being wiped
+  each run; `COPY INTO` against the whole stage prefix is naturally
+  idempotent since Snowflake tracks already-loaded files and skips them,
+  confirmed by re-running immediately and seeing "0 files processed".
+  Added `requests==2.31.0` to `requirements.txt` (new dependency, installed
+  locally and rebuilt into the Docker image). Added
+  `dbt_project/models/staging/stg_exchange_rate.sql` + source entry + tests
+  (unique/not_null on rate_date) — dbt run/test both passed (16 models, 35
+  tests). Rewired `dags/olist_pipeline_dag.py` so the new
+  `fetch_exchange_rate >> load_exchange_rate` branch runs in parallel with
+  `extract >> load`, fanning in before `dbt_run`
+  (`[load, load_exchange_rate] >> dbt_run >> dbt_test`). Verified via a real
+  Docker/Airflow run: all 6 tasks succeeded, and task timing confirmed the
+  two branches genuinely ran in parallel and dbt_run correctly waited for
+  both to finish. This completes the optional stretch goal — Project 1 is
+  now fully done, including the stretch item.
+- **2026-10-09** — Generated interview-prep note "GitHub Actions CI/CD for
+  dbt" under `notes/Data Engineering/` (the workflow, secrets, and the full
+  debugging saga — corrupted multiline secrets, trailing-newline bugs, how to
+  read masked debug logs). Updated `notes/Knowledge-Map.md`. 12 notes total.
+- **2026-10-09** — GitHub Actions CI/CD is now fully working end to end
+  (`.github/workflows/dbt-ci.yml`: on push/PR to main, runs `dbt run` then
+  `dbt test` against the real Snowflake warehouse using repo secrets). This
+  closes out the last required item from the original architecture — the
+  entire planned pipeline (Bronze -> Silver -> Gold -> tests/docs ->
+  orchestration -> CI) is now built and verified.
+  Multi-stage debugging saga to get here, all from GitHub repo secrets being
+  entered wrong (not code bugs):
+  1. First CI attempt failed with "Could not deserialize key data" — the raw
+     PEM private key got corrupted when pasted into GitHub's secret textarea
+     (multiline secrets are fragile to paste). Fixed by base64-encoding the
+     key into one line locally (`keys/rsa_key.p8.b64`, gitignored) and
+     decoding it in the workflow (`base64 -d`) instead of pasting raw PEM —
+     secret renamed `SNOWFLAKE_PRIVATE_KEY_B64`.
+  2. Still failed with the same error — turned out the user had only edited
+     the *old* `SNOWFLAKE_PRIVATE_KEY` secret and re-run the *older* workflow
+     run (pre-base64-fix), not the new one. Also discovered via a screenshot
+     that none of the 6 required secrets actually existed yet — only one
+     stray secret named `MONANK_GAJJAR` was present. Added all 6 correctly:
+     `SNOWFLAKE_ACCOUNT`, `SNOWFLAKE_USER`, `SNOWFLAKE_PRIVATE_KEY_B64`,
+     `SNOWFLAKE_WAREHOUSE`, `SNOWFLAKE_DATABASE`, `SNOWFLAKE_DBT_SCHEMA`.
+  3. Next failure: `Could not connect to Snowflake backend after 11
+     attempt(s)` — a connection-level failure, not auth. Ruled out a
+     Snowflake network policy (`SHOW NETWORK POLICIES` returned 0 rows).
+     Root cause found by reading the workflow's `##[debug]` log closely: the
+     masked `SNOWFLAKE_ACCOUNT` value printed across *two* lines instead of
+     one (compared to other secrets printing cleanly on one line) — a tell
+     that the secret had an embedded trailing newline, from copy-pasting a
+     whole line out of `.env` including the line break. Fixed by retyping
+     the value instead of pasting.
+  4. Next failure: `JWT token is invalid` (same error as the original local
+     MFA/key-pair setup, see below) even though the key itself was correct —
+     turned out `SNOWFLAKE_USER` had the same trailing-newline problem from
+     copy-pasting. Fixed by retyping that (and the other remaining secrets)
+     instead of pasting. Re-ran -> success.
+  Key lesson for interviews: a corrupted secret value (not a code bug) was
+  the root cause every time; the `##[debug]` step log (enabled by GitHub's
+  debug logging, visible to repo admins / or via re-running with debug
+  logging on) was what actually exposed the trailing-newline clue, since
+  GitHub's secret masking otherwise hides everything equally as `***`.
 - **2026-10-06** — Generated 2 interview-prep notes under `notes/Data
   Engineering/`: Airflow DAGs & Orchestration (incl. the paused-DAG gotcha)
   and Docker & Docker Compose for Data Pipelines. Updated
@@ -182,6 +253,12 @@ GitHub Actions, Kaggle API.
   `update-memory` skill per AGENTS.md conventions. No pipeline code written yet.
 
 ## What's NOT done yet (next steps, in order)
-1. GitHub Actions CI workflow (dbt tests on push/PR). This is the next task.
-2. Stretch: live exchange-rate API enrichment via the Airflow DAG.
-3. Eventually: warehouse becomes input for Flagship Project 2.
+All 7 required architecture steps AND the optional stretch goal are done.
+Project 1 (the data engineering flagship project) is functionally complete.
+Remaining:
+1. Eventually: warehouse becomes input for Flagship Project 2
+   (stats/ML/dashboard project, not yet designed).
+2. Not yet committed/pushed to GitHub: the exchange-rate stretch-goal work
+   from this session (extract/fetch_exchange_rate.py,
+   load/load_exchange_rate.py, stg_exchange_rate.sql, updated DAG,
+   requests dependency). Everything through the CI/CD fix is already pushed.
